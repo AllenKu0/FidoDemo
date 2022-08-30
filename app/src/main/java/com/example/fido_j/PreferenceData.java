@@ -8,6 +8,8 @@ import android.os.Build;
 import android.util.Base64;
 import android.util.Log;
 
+import kotlin.text.Charsets;
+
 public class PreferenceData {
     private Context context;
     private SharedPreferences preferences;
@@ -21,18 +23,18 @@ public class PreferenceData {
         preferences= context.getSharedPreferences("Save",MODE_PRIVATE);
         id=preferences.getString("id","");
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            return Base64.decode(id,Base64.DEFAULT);
+            return Base64.decode(id,Base64.URL_SAFE);
         }
         else{
             return null;
         }
     }
 
-    public void setId(byte[] id) {
+    public void setId(String Id) {
         preferences= context.getSharedPreferences("Save",MODE_PRIVATE);
         editor=preferences.edit();
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            editor.putString("id", Base64.encodeToString(id,Base64.DEFAULT));
+            editor.putString("id", Id);
             editor.commit();
         }
     }
@@ -77,11 +79,28 @@ public class PreferenceData {
         }
     }
 
+    public void setClientDataStringRevise(String clientDataString){
+        preferences= context.getSharedPreferences("Save",MODE_PRIVATE);
+        editor=preferences.edit();
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            editor.putString("clientDataString", clientDataString);
+            editor.commit();
+        }
+    }
+
+    public String getClientDataStringRevise(){
+        preferences= context.getSharedPreferences("Save",MODE_PRIVATE);
+        return preferences.getString("clientDataString", "");
+
+    }
+
+
     public byte[] getSignature() {
         preferences= context.getSharedPreferences("Save",MODE_PRIVATE);
         signature=preferences.getString("signature","");
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            return Base64.decode(signature,Base64.DEFAULT);
+            return java.util.Base64.getUrlDecoder().decode(signature);
+//            return Base64.decode(signature,Base64.DEFAULT);
         }
         else{
             return null;
@@ -92,7 +111,7 @@ public class PreferenceData {
         preferences= context.getSharedPreferences("Save",MODE_PRIVATE);
         editor=preferences.edit();
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            editor.putString("signature", Base64.encodeToString(signature,Base64.DEFAULT));
+            editor.putString("signature", Base64.encodeToString(signature,Base64.URL_SAFE).replace("\n",""));
             editor.commit();
         }
     }
@@ -100,6 +119,7 @@ public class PreferenceData {
     public byte[] loadKeyHandle(){
         preferences= context.getSharedPreferences("Save",MODE_PRIVATE);
         keyHandle=preferences.getString("keyHandle","");
+        Log.e("TAG", "loadKeyHandle ads: "+keyHandle);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             return java.util.Base64.getUrlDecoder().decode(keyHandle);
         }
@@ -117,19 +137,6 @@ public class PreferenceData {
         }
     }
 
-    public String getType() {
-        preferences= context.getSharedPreferences("Save",MODE_PRIVATE);
-        type = preferences.getString("type","");
-        return type;
-    }
-
-    public void setType(String type) {
-        preferences= context.getSharedPreferences("Save",MODE_PRIVATE);
-        editor=preferences.edit();
-        editor.putString("type", type);
-        editor.commit();
-    }
-
     public String getUsername() {
         preferences= context.getSharedPreferences("Save",MODE_PRIVATE);
         username = preferences.getString("Username","");
@@ -143,22 +150,32 @@ public class PreferenceData {
         editor.commit();
     }
 
-    public byte[] getUserHandle() {
-        preferences= context.getSharedPreferences("Save",MODE_PRIVATE);
-        userHandle=preferences.getString("userHandle","");
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            return Base64.decode(userHandle,Base64.DEFAULT);
-        }
-        else{
-            return null;
-        }    }
-
-    public void setUserHandle(byte[] userHandle) {
+    public void saveSignGetInResult(String result){
         preferences= context.getSharedPreferences("Save",MODE_PRIVATE);
         editor=preferences.edit();
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            editor.putString("userHandle", Base64.encodeToString(userHandle,Base64.DEFAULT));
+            editor.putString("signGetInResult", result);
             editor.commit();
         }
+    }
+
+    public String getSignGetInResult() {
+        preferences = context.getSharedPreferences("Save", MODE_PRIVATE);
+        return preferences.getString("signGetInResult", "");
+    }
+
+    // user id
+    public void setUserId(String userId){
+        preferences= context.getSharedPreferences("Save",MODE_PRIVATE);
+        editor=preferences.edit();
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            editor.putString("userId", userId);
+            editor.commit();
+        }
+    }
+
+    public String getUserId(){
+        preferences = context.getSharedPreferences("Save", MODE_PRIVATE);
+        return preferences.getString("userId", "");
     }
 }

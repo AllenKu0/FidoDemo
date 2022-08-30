@@ -2,19 +2,29 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     package="com.example.fido_j">
+
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.USE_FINGERPRINT" />
+
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.Fido_J" tools:ignore="AllowBackup,GoogleAppIndexingWarning">
-        <meta-data android:name="asset_statements" android:resource="@string/asset_statements" />
+        android:theme="@style/Theme.Fido_J"
+        tools:ignore="AllowBackup,GoogleAppIndexingWarning">
         <activity
-            android:name="com.example.fido_j.LoginActivity"
-            android:exported="true" >
+            android:name=".LoginSuccessesActivity"
+            android:exported="false" />
+
+        <meta-data
+            android:name="asset_statements"
+            android:resource="@string/asset_statements" />
+
+        <activity
+            android:name=".LoginActivity"
+            android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
@@ -22,12 +32,10 @@
             </intent-filter>
         </activity>
         <activity
-            android:name="com.example.fido_j.username.MainActivity"
-            android:exported="true">
-        </activity>
-
+            android:name=".username.MainActivity"
+            android:exported="true"></activity>
         <activity
-            android:name="com.example.fido_j.credentials.CredentialsActivity"
+            android:name=".credentials.CredentialsActivity"
             android:exported="true" />
     </application>
 

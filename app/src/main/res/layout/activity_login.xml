@@ -23,7 +23,7 @@
             android:layout_height="48dp"
             android:ems="10"
             android:hint="Username"
-            android:text="@={username}"
+            android:text=""
             android:inputType="textPersonName"
             android:maxLines="1"
             app:layout_constraintBottom_toBottomOf="parent"

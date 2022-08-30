@@ -6,7 +6,7 @@
     ],
     "target": {
       "namespace": "web",
-      "site": "https://entertaining-maddening-beluga.glitch.me"
+      "site": "https://zero-trust-test.nutc-imac.com/"
     }
   },
   {
@@ -18,7 +18,7 @@
       "namespace": "android_app",
       "package_name": "com.example.android.fido_j",
       "sha256_cert_fingerprints": [
-        "BF:1D:76:1E:9A:51:D5:D5:25:26:76:E5:9B:18:D8:F3:03:50:39:17:8F:9D:C6:4E:09:DB:57:6C:CF:0E:EE:72"
+        "6F:8A:85:FB:62:18:1A:57:49:04:FE:8A:7A:7A:56:02:C1:FA:C1:62:0C:55:D5:4D:87:B9:7F:DB:BB:8E:92:98"
       ]
     }
   }

@@ -1,5 +1,6 @@
 package com.example.fido_j.api;
 
+import android.content.ComponentName;
 import android.content.Context;
 import android.os.Build;
 import android.util.Log;
@@ -47,13 +48,12 @@ import okhttp3.Response;
 
 public class AuthApi {
     private String username;
-    private String password;
-    private String sessionID;
-    private String challenge,requestChallenge;
-    AuthenticatorAttestationResponse response;
+    private String challenge;
+
+
     private static final HashMap<String,List<Cookie>> cookieStore = new HashMap<>();
-    private PublicKeyCredentialRpEntity optionRpEntity,rpEntity;
-    private PublicKeyCredentialUserEntity optionUserEntity,userEntity;
+    private PublicKeyCredentialRpEntity optionRpEntity;
+    private PublicKeyCredentialUserEntity optionUserEntity;
     public PublicKeyCredentialDescriptor descriptorEntity;
     private List<PublicKeyCredentialParameters> parametersList;
     private AuthenticatorSelectionCriteria.Builder authenticatorEntity;
@@ -79,7 +79,8 @@ public class AuthApi {
             })
             .build();
 
-    private final String BASE_URL = "https://zero-trust-test.nutc-imac.com";
+    public static final String BASE_URL = "https://zero-trust-test.nutc-imac.com";
+    //帳號api
     public void username(String username, AccountInterface accountInterface){
         this.username=username;
         MediaType JSON
@@ -107,45 +108,16 @@ public class AuthApi {
             public void onResponse(@NonNull Call call, @NonNull Response response) throws IOException {
                 // 連線成功
                 String result = response.body().string();
-                Log.d("result:",""+result);
+                Log.d("result username:",""+result);
                 accountInterface.AccountSuccess(result);
             }
         });
 
     }
-    public void password(String password,PasswordInterface passwordInterface){
-        MediaType JSON
-                = MediaType.parse("application/json; charset=utf-8");
-        JSONObject json = new JSONObject();
-        try {
-            json.put("password",password);
-        } catch (JSONException e) {
-            e.printStackTrace();
-        }
-        RequestBody body = RequestBody.create(String.valueOf(json), JSON); // new
-        Request request = new Request.Builder()
-                .url(BASE_URL+"/password")
-                .post(body)
-                .build();
-        Call call = client.newCall(request);
-        call.enqueue(new Callback() {
-            @Override
-            public void onFailure(@NonNull Call call, @NonNull IOException e) {
-                passwordInterface.PasswordFail(e.toString());
-            }
-            @Override
-            public void onResponse(@NonNull Call call, @NonNull Response response) throws IOException {
-                // 連線成功
-                String result = response.body().string();
-                Log.d("result:",""+result+"\n");
-                passwordInterface.PasswordSuccess();
-            }
-        });
-    }
+    //拿註冊所需api(RP，USER等資訊)
     public void registerFidoOptions(OptionsRequestInterface optionsRequestInterface){
-
         Request request = new Request.Builder()
-                .url(BASE_URL+"/registerFidoOptions")
+                .url(BASE_URL+"/generate-registration-options")
                 .header("X-Requested-With","XMLHttpRequest")
                 .get()
                 .build();
@@ -175,6 +147,7 @@ public class AuthApi {
                     JSONObject user = json.getJSONObject("user");
                     JSONArray pubKeyParams = json.getJSONArray("pubKeyCredParams");
                     JSONObject authenticatorSelection = json.getJSONObject("authenticatorSelection");
+                    Log.e("sajhdkj", "onResponse:id "+String.valueOf(rp.get("id"))+" ,name: "+ String.valueOf(rp.get("name") ));
                     if(optionRpEntity==null) {
                         optionRpEntity = new PublicKeyCredentialRpEntity(String.valueOf(rp.get("id")), String.valueOf(rp.get("name")), null);
                     }
@@ -192,7 +165,9 @@ public class AuthApi {
                     ));
                     authenticatorEntity = new AuthenticatorSelectionCriteria.Builder();
                     authenticatorEntity.setAttachment(Attachment.PLATFORM);
+//                    authenticatorEntity.setAttachment(Attachment.fromString(authenticatorSelection.getString("authenticatorAttachment")));
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+
                         options = new PublicKeyCredentialCreationOptions.Builder()
                                 .setUser(optionUserEntity)
                                 .setChallenge(java.util.Base64.getUrlDecoder().decode(challenge))
@@ -202,7 +177,7 @@ public class AuthApi {
                                 .setRp(optionRpEntity)
                                 .build();
                     }
-                    optionsRequestInterface.OptionsSuccess(options);
+                    optionsRequestInterface.OptionsSuccess(options,user);
                 } catch (JSONException e) {
                     Log.d("ChallengeErr",""+e.getMessage());
                 }
@@ -210,112 +185,33 @@ public class AuthApi {
             }
         });
     }
-    public void registerRequest(RequestInterface requestInterface){
-        MediaType JSON
-                = MediaType.parse("application/json; charset=utf-8");
-        JSONObject json = new JSONObject();
-        JSONObject AuthenticatorSelection = new JSONObject();
-        Log.d("Cookie:",""+cookieStore);
-        try {
-            json.put("attestation","none");
-            AuthenticatorSelection.put("authenticatorAttachment","platform");
-            AuthenticatorSelection.put("userVerification","required");
-            json.putOpt("authenticatorSelection",AuthenticatorSelection);
-            Log.d("JsonObject",""+json.toString());
-        } catch (JSONException e) {
-            Log.d("RegisterRequest",""+e.getMessage());
-        }
-        RequestBody body = RequestBody.create(String.valueOf(json), JSON); // new
-        Request request = new Request.Builder()
-                .url(BASE_URL+"/registerRequest")
-                .header("X-Requested-With","XMLHttpRequest")
-                .post(body)
-                .build();
-        Call call = client.newCall(request);
-        call.enqueue(new Callback() {
-            @Override
-            public void onFailure(@NonNull Call call, @NonNull IOException e) {
-                requestInterface.RequestFail(e.toString());
-            }
 
-            @Override
-            public void onResponse(@NonNull Call call, @NonNull Response response) throws IOException {
-                // 連線成功(會失敗1~2次屬正常)
-                String result = response.body().string();
-                try {
-                    JSONObject json = new JSONObject(result);
-                    if(json.getString("challenge")!=null){
-                        try{
-                            challenge= String.valueOf(json.get("challenge"));
-                        }
-                        catch(Exception e){
-                            Log.d("ChallengeError",""+e.getMessage());
-                        }
-                    }
-                    Log.d("Challenge",""+json.get("challenge"));
-                    Log.d("JsonRequest",""+json.toString());
-                    JSONObject rp = json.getJSONObject("rp");
-                    JSONObject user = json.getJSONObject("user");
-                    JSONArray pubKeyParams = json.getJSONArray("pubKeyCredParams");
-                    JSONObject authenticatorSelection = json.getJSONObject("authenticatorSelection");
-                    if(rpEntity==null) {
-                        rpEntity = new PublicKeyCredentialRpEntity(String.valueOf(rp.get("id")), String.valueOf(rp.get("name")), null);
-                    }
-                    if (userEntity==null) {
-                        userEntity= new PublicKeyCredentialUserEntity(
-                                String.valueOf(user.get("id")).getBytes(),
-                                String.valueOf(user.get("name")),
-                                null,
-                                String.valueOf(user.get("displayName"))
-                        );
-                    }
-                    parametersList = Collections.singletonList(new PublicKeyCredentialParameters(
-                            PublicKeyCredentialType.PUBLIC_KEY.toString(),
-                            EC2Algorithm.ES256.getAlgoValue()
-                    ));
-                    authenticatorEntity = new AuthenticatorSelectionCriteria.Builder();
-                    try {
-                        authenticatorEntity.setAttachment(Attachment.fromString(authenticatorSelection.getString("authenticatorAttachment")));
-                    } catch (Attachment.UnsupportedAttachmentException e) {
-                        e.printStackTrace();
-                    }
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        options = new PublicKeyCredentialCreationOptions.Builder()
-                                .setUser(userEntity)
-                                .setChallenge(java.util.Base64.getUrlDecoder().decode(challenge))
-                                .setParameters(parametersList)
-                                .setTimeoutSeconds(Double.valueOf(1800000))
-                                .setAuthenticatorSelection(authenticatorEntity.build())
-                                .setRp(rpEntity)
-                                .build();
-                    }
-                    requestInterface.RequestSuccess(options);
-                } catch (JSONException e) {
-                    Log.d("ChallengeErr",""+e.getMessage());
-                }
-                Log.d("RegisterResult:",""+result);
-            }
-        });
-    }
-    public void registerResponse(String keyHandle,String datajson,String attestationObject,PublicKeyCredential credential,ResponseInterface responseInterface){
+    //註冊最後一步
+    public void registerOptionResponse(String keyHandle,String clientDataJSON,String attestationObject,PublicKeyCredential credential,ResponseInterface responseInterface){
         MediaType JSON
                 = MediaType.parse("application/json; charset=utf-8");
         JSONObject json = new JSONObject();
         JSONObject response = new JSONObject();
+        JSONObject clientExtensionResults = new JSONObject();
+        ArrayList<String> transportsList = new ArrayList<>();
+        transportsList.add("internal");
+        JSONArray transports = new JSONArray(transportsList);
         try {
             json.put("id",credential.getId());
-            json.put("type",PublicKeyCredentialType.PUBLIC_KEY.toString());
             json.put("rawId",credential.getId());
-            response.put("clientDataJSON",datajson);
             response.put("attestationObject",attestationObject);
+            response.put("clientDataJSON",clientDataJSON);
             json.putOpt("response",response);
-            Log.d("RegisterResponse",""+json.toString());
+            json.put("type",PublicKeyCredentialType.PUBLIC_KEY.toString());
+            json.put("clientExtensionResults",clientExtensionResults);
+            json.put("transports",transports);
+            Log.d("registerOptionResponse",""+json.toString());
         } catch (JSONException e) {
             e.printStackTrace();
         }
         RequestBody body = RequestBody.create(String.valueOf(json), JSON); // new
         Request request = new Request.Builder()
-                .url(BASE_URL+"/registerResponse")
+                .url(BASE_URL+"/verify-registration-response")
                 .header("X-Requested-With","XMLHttpRequest")
                 .header("User-Agent", BuildConfig.APPLICATION_ID+"/"+BuildConfig.VERSION_NAME +
                         "(Android "+Build.VERSION.RELEASE+"; "+Build.MODEL+"; "+Build.BRAND+")")
@@ -341,38 +237,34 @@ public class AuthApi {
                 } catch (Exception e) {
                     responseInterface.ResponseFail(e.getMessage());
                 }
-
             }
         });
     }
-    public void signinRequest(String credId, Context context, SignRequestInterface signRequestInterface){
-        PreferenceData storeHandle = new PreferenceData(context);
-        MediaType JSON
-                = MediaType.parse("application/json; charset=utf-8");
-        //此api不用json值
-        RequestBody body = RequestBody.create("{}", JSON); // new
+
+    //登入要求api
+    public void sigInOptionRequest(Context context,SignOptionGet signOptionGet){
         Request request = new Request.Builder()
-                .url(BASE_URL+"/signinRequest?credId="+credId)
+                .url(BASE_URL+"/generate-authentication-options")
                 .header("X-Requested-With","XMLHttpRequest")
-                .header("User-Agent", BuildConfig.APPLICATION_ID+"/"+BuildConfig.VERSION_NAME +
-                        "(Android "+Build.VERSION.RELEASE+"; "+Build.MODEL+"; "+Build.BRAND+")")
-                .post(body)
+                .get()
                 .build();
         Call call = client.newCall(request);
         call.enqueue(new Callback() {
             @Override
             public void onFailure(@NonNull Call call, @NonNull IOException e) {
-                signRequestInterface.SignRequestFail(e.getMessage());
+                signOptionGet.SignOptionGetFail(e.getMessage());
             }
 
             @Override
             public void onResponse(@NonNull Call call, @NonNull Response response) throws IOException {
-                String result=response.body().string();
-                Log.d("SignInRequestResult",""+result);
+                String result = response.body().string();
+                PreferenceData storeHandle = new PreferenceData(context);
+                Log.e("result","sigInOptionRequest onResponse:"+result);
                 try {
                     ArrayList<Transport> transports= new ArrayList<>();
                     transports.add(Transport.INTERNAL);
                     JSONObject json = new JSONObject(result);
+                    Log.e("TAG", "onResponse: "+json.getString("challenge"));
                     if(descriptorEntity==null){
                         JSONObject allowCredentials = json.getJSONArray("allowCredentials").getJSONObject(0);
                         Log.d("tagggggg",""+storeHandle.loadKeyHandle());
@@ -390,40 +282,96 @@ public class AuthApi {
                                 .setTimeoutSeconds(Double.valueOf(1800000))
                                 .build();
                     }
-                    signRequestInterface.SignRequestSuccess(requestOptions);
-                } catch (Exception e) {
-                    Log.d("Build-RequestOptions","Failed By:"+e.getMessage());
+                    signOptionGet.SignOptionGetSuccess(requestOptions,result);
+                } catch (JSONException e) {
+                    Log.d("ChallengeErr",""+e.getMessage());
                 }
+                Log.d("sigInOptionRequest:","result: "+result);
+            }
+        });
+    }
+    //登入 post驗證 api
+    public void signInOptionResponse(String result, String clientDataString,String authenticatorDataBase64,String signatureBase64,String keyHandleBase64,SignRequestInterface signRequestInterface) throws JSONException {
+        Log.e("TAG", "signInOptionResponse: result"+result );
+        Log.e("TAG", "clientDataString: "+clientDataString );
+        //回傳Body
+        JSONObject json = new JSONObject();
+        //result to JSON
+        JSONObject resultJson = new JSONObject(result);
+        // id
+        Log.e("TAG", "signInOptionResponse: "+resultJson.getJSONArray("allowCredentials").get(0).toString());
+        JSONObject allowCredentialsJSON = new JSONObject(resultJson.getJSONArray("allowCredentials").get(0).toString());
+
+        MediaType JSON
+                = MediaType.parse("application/json; charset=utf-8");
+        JSONObject clientExtensionResults = new JSONObject();
+        JSONObject responseJson = new JSONObject();
+        Log.e("TAG", "signInOptionResponse:e04 "+authenticatorDataBase64 );
+        try {
+            json.put("id",allowCredentialsJSON.get("id"));
+            json.put("rawId",allowCredentialsJSON.get("id"));
+            responseJson.put("authenticatorData",authenticatorDataBase64);
+            responseJson.put("clientDataJSON",clientDataString);
+            responseJson.put("signature",signatureBase64);
+            responseJson.put("userHandle",keyHandleBase64);
+            json.putOpt("response",responseJson);
+            json.put("type",PublicKeyCredentialType.PUBLIC_KEY.toString());
+            json.put("clientExtensionResults",clientExtensionResults);
+            Log.d("TAG","signInOptionResponseBody :"+json.toString());
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+        //此api不用json值
+        RequestBody body = RequestBody.create(String.valueOf(json), JSON); // new
+        Request request = new Request.Builder()
+                .url(BASE_URL+"/verify-authentication-response")
+                .header("User-Agent", BuildConfig.APPLICATION_ID+"/"+BuildConfig.VERSION_NAME +
+                        "(Android "+Build.VERSION.RELEASE+"; "+Build.MODEL+"; "+Build.BRAND+")")
+                .header("Origin","https://zero-trust-test.nutc-imac.com")
+                .header("Referer","https://zero-trust-test.nutc-imac.com")
+                .header("Accept-Encoding","gzip, deflate, br")
+                .header("Sec-Fetch-Site","same-origin")
+                .header("Sec-Fetch-Mode","cors")
+                .header("Sec-Fetch-Dest","empty")
+                .post(body)
+                .build();
+        Call call = client.newCall(request);
+        call.enqueue(new Callback() {
+            @Override
+            public void onFailure(@NonNull Call call, @NonNull IOException e) {
+                Log.e("TAG", "onFailure: "+e.getMessage() );
+                signRequestInterface.SignRequestFail(e.getMessage());
+            }
+
+            @Override
+            public void onResponse(@NonNull Call call, @NonNull Response response) throws IOException {
+                Log.e("TAG", "onResponse: "+response.toString());
+                signRequestInterface.SignRequestSuccess(json);
 
             }
         });
     }
-    public void signinResponse(){
 
-    }
     public interface AccountInterface{
         void AccountSuccess(String result);
         void AccountFail(String msg);
     }
-    public interface PasswordInterface{
-        void PasswordSuccess();
-        void PasswordFail(String msg);
-    }
     public interface OptionsRequestInterface{
-        void OptionsSuccess(PublicKeyCredentialCreationOptions publicKeyCredentialCreationOptions);
+        void OptionsSuccess(PublicKeyCredentialCreationOptions publicKeyCredentialCreationOptions,JSONObject user) throws JSONException;
         void OptionsFail(String msg);
-    }
-    public interface RequestInterface{
-        void RequestSuccess(PublicKeyCredentialCreationOptions publicKeyCredentialCreationOptions);
-        void RequestFail(String msg);
     }
     public interface ResponseInterface{
         void ResponseSuccess(JSONObject json);
         void ResponseFail(String msg);
     }
     public interface SignRequestInterface{
-        void SignRequestSuccess(PublicKeyCredentialRequestOptions publicKeyCredentialRequestOptions);
+        void SignRequestSuccess(JSONObject json);
         void SignRequestFail(String msg);
+    }
+
+    public interface SignOptionGet{
+        void SignOptionGetSuccess(PublicKeyCredentialRequestOptions publicKeyCredentialRequestOptions,String result);
+        void SignOptionGetFail(String msg);
     }
 }
 

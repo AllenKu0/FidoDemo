@@ -36,235 +36,194 @@ import com.google.android.gms.fido.fido2.api.common.PublicKeyCredentialUserEntit
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
 
+import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.UnsupportedEncodingException;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
+import java.util.ArrayList;
 import java.util.List;
 
+import co.nstant.in.cbor.CborDecoder;
+import co.nstant.in.cbor.CborException;
 import kotlin.text.Charsets;
 
 public class MainActivity extends AppCompatActivity {
     private ActivityMainBinding binding;
     private Task<PendingIntent> fido2PendingIntent;
-    private AuthApi api=new AuthApi();
+    private AuthApi api = new AuthApi();
     private SharedPreferences preferences;
     private SharedPreferences.Editor editor;
-    private String Preferences_Username_Key="USER_NAME_KEY";
-    private String Preferences_Password_Key="USER_PASSWORD_KEY";
-    private String Credentials_Key="CREDENTIALS_KEY";
-    private BiometricManager manager;
-    private BiometricPrompt.PromptInfo prompt;
-    private BiometricPrompt biometricPrompt;
-    private String username,password,savedUsername;
+    private String Preferences_Username_Key = "USER_NAME_KEY";
+    private String Preferences_Password_Key = "USER_PASSWORD_KEY";
+    private String Credentials_Key = "CREDENTIALS_KEY";
+
+    private String username;
     private PreferenceData storeHandle;
-    private String userAgent=BuildConfig.APPLICATION_ID+"/"+BuildConfig.VERSION_NAME+
-            "(Android "+Build.VERSION.RELEASE+"; "+Build.MODEL+"; "+Build.BRAND+")";
-    private int REQUEST_CODE_REGISTER=1;
-    private Bundle bundle;
-    private int credentials;
-    private PublicKeyCredentialRpEntity rpEntity;
-    private PublicKeyCredentialUserEntity userEntity;
-    private List<PublicKeyCredentialParameters> parametersList;
-    private ActivityResultLauncher<IntentSenderRequest> registerRequest;
-    private IntentSenderRequest senderRequest;
+    private String userAgent = BuildConfig.APPLICATION_ID + "/" + BuildConfig.VERSION_NAME +
+            "(Android " + Build.VERSION.RELEASE + "; " + Build.MODEL + "; " + Build.BRAND + ")";
+
     private Activity activity;
     private PublicKeyCredentialCreationOptions options;
     private PublicKeyCredential credential;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 //        setContentView(R.layout.activity_main);
-        activity=this;
-        preferences= getSharedPreferences("Save",MODE_PRIVATE);
-        editor=preferences.edit();
+        activity = this;
+        
+        preferences = getSharedPreferences("Save", MODE_PRIVATE);
+        editor = preferences.edit();
         storeHandle = new PreferenceData(getApplicationContext());
-//        prompt=new BiometricPrompt.PromptInfo.Builder()
-//                .setTitle("指紋認證")
-//                .setSubtitle("使用掃描器認證以進行下一步")
-//                .setNegativeButtonText("取消")
-//                .build();
-//        biometricPrompt = new BiometricPrompt(MainActivity.this, ContextCompat.getMainExecutor(this),
-//                new BiometricPrompt.AuthenticationCallback() {
-//                    @Override
-//                    public void onAuthenticationError(int errorCode, @NonNull CharSequence errString) {
-//                        super.onAuthenticationError(errorCode, errString);
-//                        Toast.makeText(getApplicationContext(),"Authen Error:"+errString,Toast.LENGTH_SHORT).show();
-//                    }
-//
-//                    @Override
-//                    public void onAuthenticationSucceeded(@NonNull BiometricPrompt.AuthenticationResult result) {
-//                        super.onAuthenticationSucceeded(result);
-//                        Toast.makeText(getApplicationContext(), "註冊成功!", Toast.LENGTH_SHORT).show();
-//                        editor.commit();
-//                        api.registerRequest();
-//                        Intent intent = new Intent(MainActivity.this, CredentialsActivity.class);
-//                        startActivity(intent);
-//                        finish();
-//                    }
-//
-//                    @Override
-//                    public void onAuthenticationFailed() {
-//                        super.onAuthenticationFailed();
-//                        Toast.makeText(getApplicationContext(),"Authen Failed",Toast.LENGTH_SHORT).show();
-//                    }
-//                });
-        binding= DataBindingUtil.setContentView(this,R.layout.activity_main);
-        binding.btnNext.setOnClickListener(view->{
-            username=binding.etUsername.getText().toString();
-            password=binding.etPassword.getText().toString();
-            if(!"".equals(username)||!"".equals(password)) {
+
+        binding = DataBindingUtil.setContentView(this, R.layout.activity_main);
+        binding.btnNext.setOnClickListener(view -> {
+            username = binding.etUsername.getText().toString();
+//            password=binding.etPassword.getText().toString();
+            if (!"".equals(username)) {
                 api.username(username, new AuthApi.AccountInterface() {
                     @Override
                     public void AccountSuccess(String result) {
                         storeHandle.setUsername(username);
-                        api.password(password, new AuthApi.PasswordInterface() {
+                        api.registerFidoOptions(new AuthApi.OptionsRequestInterface() {
                             @Override
-                            public void PasswordSuccess() {
-                                api.registerFidoOptions(new AuthApi.OptionsRequestInterface() {
-                                    @Override
-                                    public void OptionsSuccess(PublicKeyCredentialCreationOptions publicKeyCredentialCreationOptions) {
-                                        options = publicKeyCredentialCreationOptions;
-                                        Log.d("Options",""+options);
-                                        Fido2ApiClient fido2ApiClient = Fido.getFido2ApiClient(getApplicationContext());
-                                        fido2PendingIntent = fido2ApiClient.getRegisterPendingIntent(options);
+                            public void OptionsSuccess(PublicKeyCredentialCreationOptions publicKeyCredentialCreationOptions, JSONObject user) throws JSONException {
+                                options = publicKeyCredentialCreationOptions;
+                                Fido2ApiClient fido2ApiClient = Fido.getFido2ApiClient(getApplicationContext());
+                                storeHandle.setUserId(user.getString("id"));
+                                fido2PendingIntent = fido2ApiClient.getRegisterPendingIntent(options);
 
-                                        fido2PendingIntent.addOnSuccessListener(new OnSuccessListener<PendingIntent>() {
+                                fido2PendingIntent.addOnSuccessListener(new OnSuccessListener<PendingIntent>() {
+                                    @Override
+                                    public void onSuccess(PendingIntent fido2PendingIntent) {
+                                        new Thread(new Runnable() {
                                             @Override
-                                            public void onSuccess(PendingIntent fido2PendingIntent) {
-                                                new Thread(new Runnable() {
-                                                    @Override
-                                                    public void run() {
-                                                        try {
-                                                            Log.d("IntentSenderrrrr",""+fido2PendingIntent.getIntentSender().toString());
-                                                            activity.startIntentSenderForResult(
-                                                                    fido2PendingIntent.getIntentSender(),
-                                                                    1,
-                                                                    null, // fillInIntent,
-                                                                    0, // flagsMask,
-                                                                    0, // flagsValue,
-                                                                    0); //extraFlags);
-                                                        } catch (Exception e) {
-                                                            Log.d("LOGTAG", "" + e.getMessage());
-                                                        }
-                                                    }
-                                                }).start();
+                                            public void run() {
+                                                try {
+                                                    activity.startIntentSenderForResult(
+                                                            fido2PendingIntent.getIntentSender(),
+                                                            1,
+                                                            null, // fillInIntent,
+                                                            0, // flagsMask,
+                                                            0, // flagsValue,
+                                                            0); //extraFlags);
+                                                } catch (Exception e) {
+                                                    Log.d("LOG_TAG", "" + e.getMessage());
+                                                }
                                             }
-                                        });
-                                    }
-
-                                    @Override
-                                    public void OptionsFail(String msg) {
-                                        Looper.prepare();
-                                        Toast.makeText(getApplicationContext(),msg,Toast.LENGTH_SHORT).show();
-                                        Looper.loop();
+                                        }).start();
                                     }
                                 });
                             }
 
                             @Override
-                            public void PasswordFail(String msg) {
-                                Log.d("PasswordError",""+msg);
+                            public void OptionsFail(String msg) {
+                                Looper.prepare();
+                                Toast.makeText(getApplicationContext(), msg, Toast.LENGTH_SHORT).show();
+                                Looper.loop();
                             }
                         });
                     }
 
                     @Override
                     public void AccountFail(String msg) {
-                        Log.d("AccountError",""+msg);
+                        Log.d("AccountError", "" + msg);
                     }
                 });
-                editor.putString(Preferences_Username_Key,username);
-                editor.putString(Preferences_Password_Key,password);
+                editor.putString(Preferences_Username_Key, username);
                 editor.commit();
-
-
-//                biometricPrompt.authenticate(prompt);
-                }
+            }
         });
     }
+
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
 
-        Log.d("LOG_TAG",""+data.hasExtra(Fido.FIDO2_KEY_RESPONSE_EXTRA)+"\n" +
-                data.hasExtra(Fido.FIDO2_KEY_ERROR_EXTRA)+"\n"+
+        Log.d("LOG_TAG", "" + data.hasExtra(Fido.FIDO2_KEY_RESPONSE_EXTRA) + "\n" +
+                data.hasExtra(Fido.FIDO2_KEY_ERROR_EXTRA) + "\n" +
                 data.hasExtra(Fido.KEY_RESPONSE_EXTRA));
         if (resultCode == RESULT_OK) {
             if (data.hasExtra(Fido.FIDO2_KEY_RESPONSE_EXTRA)) {
                 byte[] fido2Response = data.getByteArrayExtra(Fido.FIDO2_KEY_RESPONSE_EXTRA);
                 byte[] credentialByte = data.getByteArrayExtra(Fido.FIDO2_KEY_CREDENTIAL_EXTRA);
-                Log.d("Response Extra",""+fido2Response);
+                Log.d("Response Extra", "" + fido2Response);
 
-                if (requestCode==1) {
-                    credential =PublicKeyCredential.deserializeFromBytes(credentialByte);
-                    handleRegisterResponse(fido2Response,credential);
-                }
-                else if(requestCode==2){
+                if (requestCode == 1) {
+                    credential = PublicKeyCredential.deserializeFromBytes(credentialByte);
+                    try {
+                        handleRegisterResponse(fido2Response, credential);
+                    } catch (JSONException e) {
+                        e.printStackTrace();
+                    } catch (UnsupportedEncodingException e) {
+                        e.printStackTrace();
+                    } catch (CborException e) {
+                        e.printStackTrace();
+                    }
+                } else if (requestCode == 2) {
                     handleSignResponse(fido2Response);
                 }
-            }
-            else if (data.hasExtra(Fido.FIDO2_KEY_ERROR_EXTRA)){
+            } else if (data.hasExtra(Fido.FIDO2_KEY_ERROR_EXTRA)) {
                 handleErrorResponse(data.getByteArrayExtra(Fido.FIDO2_KEY_ERROR_EXTRA));
             }
         }
     }
+
     private void handleErrorResponse(byte[] errorBytes) {
         AuthenticatorErrorResponse authenticatorErrorResponse = AuthenticatorErrorResponse.deserializeFromBytes(errorBytes);
         String errorName = authenticatorErrorResponse.getErrorCode().name();
         String errorMessage = authenticatorErrorResponse.getErrorMessage();
-        Log.e("LOG_TAG", "errorCode.name:"+errorName);
-        Log.e("LOG_TAG", "errorMessage:"+errorMessage);
-        Toast.makeText(getApplicationContext(),errorMessage,Toast.LENGTH_SHORT).show();
+        Log.e("LOG_TAG", "errorCode.name:" + errorName);
+        Log.e("LOG_TAG", "errorMessage:" + errorMessage);
+        Toast.makeText(getApplicationContext(), errorMessage, Toast.LENGTH_SHORT).show();
     }
 
-    private void handleRegisterResponse(byte[] fido2Response,PublicKeyCredential credential) {
+    private void handleRegisterResponse(byte[] fido2Response, PublicKeyCredential credential) throws JSONException, UnsupportedEncodingException, CborException {
         AuthenticatorAttestationResponse response = AuthenticatorAttestationResponse.deserializeFromBytes(fido2Response);
+
         String keyHandleBase64 = Base64.encodeToString(response.getKeyHandle(), Base64.NO_WRAP);
-        Log.d("KeyHandle", "" + Base64.encodeToString(storeHandle.loadKeyHandle(), Base64.DEFAULT));
         String clientDataJsonBody = new String(response.getClientDataJSON(), Charsets.UTF_8).getBytes(StandardCharsets.UTF_8).toString();
-        String clientDataJson = Base64.encodeToString(response.getClientDataJSON(),Base64.NO_WRAP);
-        String attestationObjectBase64 = Base64.encodeToString(response.getAttestationObject(), Base64.NO_WRAP);
+        String clientDataJson = Base64.encodeToString(response.getClientDataJSON(), Base64.NO_WRAP);
+        String attestationObjectBase64 = Base64.encodeToString(response.getAttestationObject(), Base64.URL_SAFE).replace("\n", "");
+        Log.e("TAG", "getAttestationObject: " + CborDecoder.decode(response.getAttestationObject()).toString());
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            Log.e("TAG", "web 範例: " + CborDecoder.decode(java.util.Base64.getUrlDecoder().decode("o2NmbXRkbm9uZWdhdHRTdG10oGhhdXRoRGF0YVkBILyFJG8BiJSXQ_FCl8bn0F7deXSqTth5TsrmUqbBDn_-RQAAAACtzgACNbzGCmSLCyXx8FUDAJykWAI-hISbgW-LPd9vUuLxNvGz3GSzLpljCsEseQ8uB-0W9bdI9J0XngIS4lbq0Ek2sdHre3xBcxqQYdd2iZq43vlU4U0bcI8SDYQS43kLdNY3WgiFGxCfo21AJH54K2GO3OGmRDYDRckThahQL1T55yKx95HOMqH6Hpa7yeelho74QQXEtQ-UmVbnvzR_levwmUbqIarmVJaldoOlAQIDJiABIVggDdCq8hViy8jzta1wC_eyj-OQaGw226Rznj0jk1t00nUiWCBEoeYqxyh_0jK7E_KBGX4z3g8O5stYAu48-aqAK6D6yg")).toString());
+        }
+        //--------------------RegisterResponse--------------------//
+        Log.d("LOG_TAG", "keyHandleBase64:" + keyHandleBase64);
+        Log.d("LOG_TAG", "clientDataJSON:" + clientDataJson);
+        Log.d("LOG_TAG", "clientDataJSONBodyy:" + clientDataJsonBody);
+        Log.d("LOG_TAG", "attestationObjectBase64:" + attestationObjectBase64);
+        //-------------------storeKey-----------------------//
         storeHandle.saveKeyHandle(response.getKeyHandle());
         storeHandle.setClientDataJSON(response.getClientDataJSON());
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            storeHandle.setId(java.util.Base64.getUrlDecoder().decode(credential.getId()));
-        }
-        api.registerRequest(new AuthApi.RequestInterface() {
+//        storeHandle.setClientDataStringRevise(clientDataJsonReviseString);
+        // 打學長的Response
+        api.registerOptionResponse(keyHandleBase64, clientDataJson, attestationObjectBase64, credential, new AuthApi.ResponseInterface() {
             @Override
-            public void RequestSuccess(PublicKeyCredentialCreationOptions publicKeyCredentialCreationOptions) {
-                api.registerResponse(keyHandleBase64,clientDataJson,attestationObjectBase64,credential, new AuthApi.ResponseInterface() {
-                    @Override
-                    public void ResponseSuccess(JSONObject jsonObject) {
-                        showRegistSuccess();
-                        finish();
-                    }
-
-                    @Override
-                    public void ResponseFail(String msg) {
-                        Log.d("ResponseFail",""+msg);
-                    }
-                });
+            public void ResponseSuccess(JSONObject jsonObject) {
+                Log.e("TAG", "ResponseSuccess: " + jsonObject);
+                showRegisterSuccess();
+                finish();
             }
 
             @Override
-            public void RequestFail(String msg) {
-                Log.d("RequestFail",msg);
+            public void ResponseFail(String msg) {
+                Log.d("ResponseFail", "" + msg);
             }
         });
 
-        Log.d("LOG_TAG", "keyHandleBase64:"+keyHandleBase64);
-        Log.d("LOG_TAG", "clientDataJSON:"+clientDataJson);
-        Log.d("LOG_TAG", "clientDataJSONBodyy:"+clientDataJsonBody);
-        Log.d("LOG_TAG", "attestationObjectBase64:"+attestationObjectBase64);
+
     }
 
-    private void showRegistSuccess() {
+    private void showRegisterSuccess() {
         new Thread(new Runnable() {
             @Override
             public void run() {
                 Looper.prepare();
-                Toast.makeText(getApplicationContext(),"註冊成功",Toast.LENGTH_SHORT).show();
+                Toast.makeText(getApplicationContext(), "註冊成功", Toast.LENGTH_SHORT).show();
                 Looper.loop();
             }
         }).start();
@@ -277,10 +236,10 @@ public class MainActivity extends AppCompatActivity {
         String authenticatorDataBase64 = Base64.encodeToString(response.getAuthenticatorData(), Base64.NO_WRAP);
         String signatureBase64 = Base64.encodeToString(response.getSignature(), Base64.NO_WRAP);
 
-        Log.d("LOG_TAGGG", "keyHandleBase64:"+keyHandleBase64);
-        Log.d("LOG_TAGGG", "clientDataJSON:"+clientDataJson);
-        Log.d("LOG_TAGGG", "authenticatorDataBase64:"+authenticatorDataBase64);
-        Log.d("LOG_TAGGG", "signatureBase64:"+signatureBase64);
+        Log.d("LOG_TAGGG", "keyHandleBase64:" + keyHandleBase64);
+        Log.d("LOG_TAGGG", "clientDataJSON:" + clientDataJson);
+        Log.d("LOG_TAGGG", "authenticatorDataBase64:" + authenticatorDataBase64);
+        Log.d("LOG_TAGGG", "signatureBase64:" + signatureBase64);
 
         String signFido2Result = "Authenticator Assertion Response\n\n" +
                 "keyHandleBase64:\n" +
@@ -292,11 +251,11 @@ public class MainActivity extends AppCompatActivity {
                 "signatureBase64:\n" +
                 "$signatureBase64\n";
     }
+
     private byte[] challenge() {
         SecureRandom secureRandom = new SecureRandom();
         byte[] challenge = new byte[16];
         secureRandom.nextBytes(challenge);
         return challenge;
     }
-
 }
