@@ -14,9 +14,6 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Fido_J"
         tools:ignore="AllowBackup,GoogleAppIndexingWarning">
-        <activity
-            android:name=".LoginSuccessesActivity"
-            android:exported="false" />
 
         <meta-data
             android:name="asset_statements"

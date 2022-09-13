@@ -55,7 +55,7 @@ public class MainActivity extends AppCompatActivity {
     private AuthApi api = new AuthApi();
     private SharedPreferences preferences;
     private SharedPreferences.Editor editor;
-    private String Preferences_Username_Key = "USER_NAME_KEY";
+    private final String Preferences_Username_Key = "USER_NAME_KEY";
     private String Preferences_Password_Key = "USER_PASSWORD_KEY";
     private String Credentials_Key = "CREDENTIALS_KEY";
 
@@ -73,6 +73,7 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
 //        setContentView(R.layout.activity_main);
         activity = this;
+
         
         preferences = getSharedPreferences("Save", MODE_PRIVATE);
         editor = preferences.edit();
@@ -257,5 +258,57 @@ public class MainActivity extends AppCompatActivity {
         byte[] challenge = new byte[16];
         secureRandom.nextBytes(challenge);
         return challenge;
+    }
+
+    private void nameApi() {
+        api.username(username, new AuthApi.AccountInterface() {
+            @Override
+            public void AccountSuccess(String result) {
+                storeHandle.setUsername(username);
+//                api.registerFidoOptions(new AuthApi.OptionsRequestInterface() {
+//                    @Override
+//                    public void OptionsSuccess(PublicKeyCredentialCreationOptions publicKeyCredentialCreationOptions, JSONObject user) throws JSONException {
+//                        options = publicKeyCredentialCreationOptions;
+//                        Fido2ApiClient fido2ApiClient = Fido.getFido2ApiClient(getApplicationContext());
+//                        storeHandle.setUserId(user.getString("id"));
+//                        fido2PendingIntent = fido2ApiClient.getRegisterPendingIntent(options);
+//
+//                        fido2PendingIntent.addOnSuccessListener(new OnSuccessListener<PendingIntent>() {
+//                            @Override
+//                            public void onSuccess(PendingIntent fido2PendingIntent) {
+//                                new Thread(new Runnable() {
+//                                    @Override
+//                                    public void run() {
+//                                        try {
+//                                            activity.startIntentSenderForResult(
+//                                                    fido2PendingIntent.getIntentSender(),
+//                                                    1,
+//                                                    null, // fillInIntent,
+//                                                    0, // flagsMask,
+//                                                    0, // flagsValue,
+//                                                    0); //extraFlags);
+//                                        } catch (Exception e) {
+//                                            Log.d("LOG_TAG", "" + e.getMessage());
+//                                        }
+//                                    }
+//                                }).start();
+//                            }
+//                        });
+//                    }
+//
+//                    @Override
+//                    public void OptionsFail(String msg) {
+//                        Looper.prepare();
+//                        Toast.makeText(getApplicationContext(), msg, Toast.LENGTH_SHORT).show();
+//                        Looper.loop();
+//                    }
+//                });
+            }
+
+            @Override
+            public void AccountFail(String msg) {
+                Log.d("AccountError", "" + msg);
+            }
+        });
     }
 }

@@ -40,11 +40,7 @@ import kotlin.text.Charsets;
 
 public class LoginActivity extends AppCompatActivity {
     private ActivityLoginBinding binding;
-    private BiometricManager manager;
-    private BiometricPrompt.PromptInfo prompt;
-    private BiometricPrompt biometricPrompt;
     private AuthApi api=new AuthApi();
-    private String challenge;
     private int REQUEST_CODE_REGISTER =1;
     private int AUTH_ACTIVITY_RES_5=5;
     private PreferenceData storeHandle;
